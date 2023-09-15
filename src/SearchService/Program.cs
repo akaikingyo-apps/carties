@@ -1,4 +1,5 @@
 
+using MassTransit;
 using Polly;
 using Polly.Extensions.Http;
 using SearchService;
@@ -8,8 +9,20 @@ var builder = WebApplication.CreateBuilder(args);
 // Add services to the container.
 
 builder.Services.AddControllers();
-// Learn more about configuring Swagger/OpenAPI at https://aka.ms/aspnetcore/swashbuckle
+builder.Services.AddAutoMapper(AppDomain.CurrentDomain.GetAssemblies()); // for auto mapping
 builder.Services.AddHttpClient<AuctionSvcHttpClient>().AddPolicyHandler(GetPolicy());
+
+builder.Services.AddMassTransit(x => {
+    x.AddConsumersFromNamespaceContaining<AuctionCreatedConsumer>();
+    x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("search", false)); // prefix with search but ignore the namespace
+    x.UsingRabbitMq((context, config) => {
+        config.ReceiveEndpoint("search-auction-created", e => { // if consumer exception, retry!
+            e.UseMessageRetry(r => r.Interval(5, 5)); // 5 times 5 sec 
+            e.ConfigureConsumer<AuctionCreatedConsumer>(context); // configure for auction created
+        });
+        config.ConfigureEndpoints(context);
+    });
+});
 
 var app = builder.Build();
 

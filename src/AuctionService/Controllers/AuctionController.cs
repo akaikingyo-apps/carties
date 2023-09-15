@@ -3,6 +3,8 @@ using AuctionService.DTOs;
 using AuctionService.Entities;
 using AutoMapper;
 using AutoMapper.QueryableExtensions;
+using Contracts;
+using MassTransit;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 
@@ -14,11 +16,13 @@ public class AuctionController: ControllerBase
 {
     private readonly AuctionDbContext _context;
     private readonly IMapper _mapper;
+    private readonly IPublishEndpoint _publishEndpoint;
 
-    public AuctionController(AuctionDbContext context, IMapper mapper)
+    public AuctionController(AuctionDbContext context, IMapper mapper, IPublishEndpoint publishEndpoint)
     {
         _context = context;
         _mapper = mapper;
+        _publishEndpoint = publishEndpoint;
     }
 
     [HttpGet]
@@ -51,11 +55,25 @@ public class AuctionController: ControllerBase
     public async Task<ActionResult<AuctionDto>> CreateAuction(CreateAuctionDto auctionDto)
     { 
         var auction = _mapper.Map<Auction>(auctionDto);
+      
         // TODO: add current user as seller
         auction.Seller = "test";
+
+
+        // add to postgres 
+        Console.WriteLine("**** adding new auction to postgres ..");
         _context.Auctions.Add(auction);
         var result = await _context.SaveChangesAsync() > 0;
-        return !result ? BadRequest("Could not save changes to the DB") : CreatedAtAction(nameof(GetAuctionById), new { auction.Id }, _mapper.Map<AuctionDto>(auction));
+
+         if  (!result) return  BadRequest("Could not save changes to the DB") ;
+       
+        // publish to rabbitmq 
+        Console.WriteLine("**** sending message to rabbit ..");
+        var newAuction = _mapper.Map<AuctionDto>(auction);
+        await _publishEndpoint.Publish(_mapper.Map<AuctionCreated>(newAuction)); 
+ 
+   
+        return CreatedAtAction(nameof(GetAuctionById), new { auction.Id }, newAuction);
     }
 
     [HttpPut("{id}")]
@@ -75,6 +93,11 @@ public class AuctionController: ControllerBase
         auction.Item.Year = updateAuctionDto.Year ?? auction.Item.Year;
 
         var result = await _context.SaveChangesAsync() > 0;
+        
+        // publish to rabbitmq 
+        Console.WriteLine("**** sending message to rabbit .."); 
+        await _publishEndpoint.Publish(_mapper.Map<AuctionUpdated>(auction)); 
+ 
 
         if (result) return Ok();
 
@@ -93,6 +116,11 @@ public class AuctionController: ControllerBase
           _context.Auctions.Remove(auction);
         
         var result = await _context.SaveChangesAsync() > 0;
+
+          // publish to rabbitmq 
+        Console.WriteLine("**** sending message to rabbit .."); 
+        await _publishEndpoint.Publish<AuctionDeleted>(new { Id = auction.Id.ToString() }); 
+ 
 
         if (result) return Ok();
 
