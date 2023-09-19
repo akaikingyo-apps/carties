@@ -29,7 +29,10 @@ builder.Services.AddMassTransit(x => {
     x.AddConsumersFromNamespaceContaining<AuctionCreatedFaultConsumer>();
     x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("auction", false));
     x.UsingRabbitMq((context, config) => {
-         
+        config.Host(builder.Configuration["RabbitMq:Host"], "/", host => {
+            host.Username(builder.Configuration.GetValue("RabiitMq:Username", "guest"));
+            host.Password(builder.Configuration.GetValue("RabiitMq:Password", "guest"));
+        });
         config.ConfigureEndpoints(context);
     });
 });

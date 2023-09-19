@@ -16,6 +16,10 @@ builder.Services.AddMassTransit(x => {
     x.AddConsumersFromNamespaceContaining<AuctionCreatedConsumer>();
     x.SetEndpointNameFormatter(new KebabCaseEndpointNameFormatter("search", false)); // prefix with search but ignore the namespace
     x.UsingRabbitMq((context, config) => {
+        config.Host(builder.Configuration["RabbitMq:Host"], "/", host => {
+            host.Username(builder.Configuration.GetValue("RabiitMq:Username", "guest"));
+            host.Password(builder.Configuration.GetValue("RabiitMq:Password", "guest"));
+        });
         config.ReceiveEndpoint("search-auction-created", e => { // if consumer exception, retry!
             e.UseMessageRetry(r => r.Interval(5, 5)); // 5 times 5 sec 
             e.ConfigureConsumer<AuctionCreatedConsumer>(context); // configure for auction created
