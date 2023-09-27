@@ -2,9 +2,9 @@
 
 import { Auction, PagedResult } from "@/types";
 
-export async function getData(pageNumber:number,pageSize:number): Promise<PagedResult<Auction>> {
-    console.log(`getData(): pagenumber:${pageNumber} pagesize:${pageSize}`)
-    const res = await fetch(`http://localhost:6001/search?pageSize=${pageSize}&pageNumber=${pageNumber}`);
+export async function getData(query:string): Promise<PagedResult<Auction>> {
+    console.log(`getData(): pagenumber:${query}`)
+    const res = await fetch(`http://localhost:6001/search${query}`);
     if (!res.ok) {
         throw new Error('fail to fetch data');
     }
