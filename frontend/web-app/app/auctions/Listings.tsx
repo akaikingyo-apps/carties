@@ -43,9 +43,6 @@ export default function Listings() { // remember to remove async when in client
         return <h3>loading ...</h3>
     }
 
-    console.log(`**** total count is ${data.totalCount}!`)
-
-
     /*let debug = ( 
         <div>{JSON.stringify(data, null, 2)}</div> 
     );*/

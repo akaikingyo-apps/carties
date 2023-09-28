@@ -41,6 +41,7 @@ public static class Config
                 AllowedScopes = { "openid", "profile", "auctionApp" },
                 AllowOfflineAccess = true, // allow refresh token functions
                 AccessTokenLifetime = 3600*24*30, // last 1 month for development
+                AlwaysIncludeUserClaimsInIdToken = true,
                 RedirectUris = { "http://localhost:3000/api/auth/callback/id-server" },
             },
         };
